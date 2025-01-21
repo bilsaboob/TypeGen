@@ -15,13 +15,13 @@ namespace TypeGen.Core.Converters
         /// </summary>
         private static readonly Regex _regex = new Regex("(?<!^)([A-Z][a-z]|(?<=[a-z])[A-Z])");
 
-        public string Convert(string name, MemberInfo memberInfo)
+        public virtual string Convert(string name, MemberInfo memberInfo)
         {
             Requires.NotNullOrEmpty(name, nameof(name));
             return ConvertTypeInvariant(name);
         }
 
-        public string Convert(string name, Type type)
+        public virtual string Convert(string name, Type type)
         {
             Requires.NotNullOrEmpty(name, nameof(name));
             return ConvertTypeInvariant(name);

@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.CompilerServices;
+using System.Text;
+using System.Threading.Tasks;
 using TypeGen.Core.Extensions;
 using TypeGen.Core.Metadata;
 using TypeGen.Core.TypeAnnotations;
@@ -123,6 +125,8 @@ namespace TypeGen.Core.Generator.Services
                 case "System.DateTime":
                 case "System.DateTimeOffset":
                     return "Date";
+                case "System.Void":
+                    return "void";
                 default:
                     return null;
             }
@@ -144,12 +148,19 @@ namespace TypeGen.Core.Generator.Services
         {
             Requires.NotNull(memberInfo, nameof(memberInfo));
 
-            if (!memberInfo.Is<FieldInfo>() && !memberInfo.Is<PropertyInfo>())
-                throw new ArgumentException($"{memberInfo} must be either a FieldInfo or a PropertyInfo");
+            if (memberInfo.Is<FieldInfo>()) {
+                return StripNullable(((FieldInfo)memberInfo).FieldType);
+            }
 
-            return memberInfo is PropertyInfo info
-                ? StripNullable(info.PropertyType)
-                : StripNullable(((FieldInfo)memberInfo).FieldType);
+            if (memberInfo.Is<PropertyInfo>()) {
+                return StripNullable(((PropertyInfo) memberInfo).PropertyType);
+            }
+            
+            if (memberInfo.Is<MethodInfo>()) {
+                return StripNullable(((MethodInfo) memberInfo).ReturnType);
+            }
+            
+            throw new ArgumentException($"{memberInfo} must be either a FieldInfo or a PropertyInfo");
         }
 
         /// <inheritdoc />
@@ -173,6 +184,23 @@ namespace TypeGen.Core.Generator.Services
                    || (type.FullName != null && type.FullName.StartsWith("System.Collections.Generic.IReadOnlyDictionary`2"))
                    || type.GetInterface("System.Collections.IDictionary") != null
                    || (type.FullName != null && type.FullName.StartsWith("System.Collections.IDictionary"));
+        }
+        
+        public bool IsTaskType(Type type)
+        {
+            Requires.NotNull(type, nameof(type));
+
+            return (type.FullName != null && type.FullName.StartsWith("System.Threading.Tasks.Task"));
+        }
+        
+        public bool IsActionType(Type type)
+        {
+            Requires.NotNull(type, nameof(type));
+
+            return (type.FullName != null && (
+                type.FullName.StartsWith("System.Action") |
+                type.FullName.StartsWith("System.Func")
+            ));
         }
 
         /// <inheritdoc />
@@ -208,6 +236,8 @@ namespace TypeGen.Core.Generator.Services
             if (IsTsBuiltInType(type)) return GetTsBuiltInTypeName(type);
             if (IsCollectionType(type)) return GetTsCollectionTypeName(type);
             if (IsDictionaryType(type)) return GetTsDictionaryTypeName(type);
+            if (IsTaskType(type)) return GetTsTaskTypeName(type);
+            if (IsActionType(type)) return GetTsActionTypeName(type);
             if (IsCustomGenericType(type)) return GetGenericTsTypeName(type, forTypeDeclaration);
 
             string typeNameNoArity = type.Name.RemoveTypeArity();
@@ -290,9 +320,7 @@ namespace TypeGen.Core.Generator.Services
             const string nullLiteral = "null";
             const string undefinedLiteral = "undefined";
             
-            Type memberType = memberInfo is PropertyInfo info
-                ? info.PropertyType
-                : ((FieldInfo)memberInfo).FieldType;
+            Type memberType = GetMemberType(memberInfo);
             
             var result = new List<string>();
 
@@ -408,6 +436,43 @@ namespace TypeGen.Core.Generator.Services
             return type.GetTypeInfo().IsGenericTypeDefinition
                 ? GetGenericTsTypeNameForDeclaration(type)
                 : GetGenericTsTypeNameForNonDeclaration(type);
+        }
+
+        private string GetTsTaskTypeName(Type type) {
+            string[] genericArgumentNames = type.GetGenericArguments()
+                .Select(t => t.IsGenericParameter ? t.Name : GetTsTypeName(t))
+                .ToArray();
+
+            var typeName = new StringBuilder();
+            typeName.Append("Promise");
+            if (genericArgumentNames.Length == 0) {
+                typeName.Append("<void>");
+            } else {
+                typeName.Append("<");
+                for (var i = 0; i < genericArgumentNames.Length; i++) {
+                    if (i > 0) typeName.Append(", ");
+                    typeName.Append(genericArgumentNames[i]);
+                }
+                typeName.Append(">");
+            }
+
+            return typeName.ToString();
+        }
+        
+        private string GetTsActionTypeName(Type type) {
+            var typeArgs = type.GetGenericArguments();
+            var typeName = new StringBuilder();
+            typeName.Append("(");
+            for (var i = 0; i < typeArgs.Length; i++) {
+                if (i > 0) typeName.Append(", ");
+                typeName.Append("arg").Append(i);
+                var argTypeName = GetTsTypeName(typeArgs[i]);
+                typeName.Append(": ");
+                typeName.Append(argTypeName);
+            }
+            typeName.Append(")");
+            typeName.Append(" => any");
+            return typeName.ToString();
         }
 
         /// <summary>

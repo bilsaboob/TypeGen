@@ -18,4 +18,11 @@ internal class MemberTrait<TSpecBuilder> : IMemberTrait<TSpecBuilder>
         _typeSpec.AddMember(ActiveMemberName);
         return _this;
     }
+    
+    public TSpecBuilder Method(string methodName)
+    {
+        ActiveMemberName = methodName;
+        _typeSpec.AddMember(ActiveMemberName);
+        return _this;
+    }
 }

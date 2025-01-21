@@ -18,5 +18,7 @@ namespace TypeGen.Core.SpecGeneration.Builders.Generic
         
         /// <inheritdoc />
         public InterfaceSpecBuilder<TType> Member(Func<TType, string> memberNameFunc) => _memberGenericTrait.Member(memberNameFunc);
+        
+        public InterfaceSpecBuilder<TType> Method(Func<TType, string> methodNameFunc) => _memberGenericTrait.Method(methodNameFunc);
     }
 }

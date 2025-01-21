@@ -8,21 +8,27 @@ namespace TypeGen.Core.SpecGeneration
     {
         private readonly List<Attribute> _additionalAttributes;
         private readonly Dictionary<string, IList<Attribute>> _memberAttributes;
+        private readonly Dictionary<string, IList<Attribute>> _methodAttributes;
 
         public ExportAttribute ExportAttribute { get; }
 
         public IList<Attribute> AdditionalAttributes => _additionalAttributes;
 
         public IDictionary<string, IList<Attribute>> MemberAttributes => _memberAttributes;
+        
+        public IDictionary<string, IList<Attribute>> MethodAttributes => _methodAttributes;
 
         public TypeSpec(ExportAttribute exportAttribute)
         {
             ExportAttribute = exportAttribute;
             _memberAttributes = new Dictionary<string, IList<Attribute>>();
+            _methodAttributes = new Dictionary<string, IList<Attribute>>();
             _additionalAttributes = new List<Attribute>();
         }
 
         public void AddMember(string memberName) => _memberAttributes[memberName] = new List<Attribute>();
+        
+        public void AddMethod(string methodName) => _methodAttributes[methodName] = new List<Attribute>();
 
         public void AddCustomBaseAttribute(string @base = null, string importPath = null, string originalTypeName = null, bool isDefaultExport = false,
             params object[] implementedInterfaces)

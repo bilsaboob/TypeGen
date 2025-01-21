@@ -80,6 +80,12 @@ namespace TypeGen.Core.Extensions
             Requires.NotNull(memberInfos, nameof(memberInfos));
             return memberInfos.Where(i => i.GetMethod?.IsPublic == true);
         }
+        
+        public static IEnumerable<MethodInfo> WithMembersFilter(this IEnumerable<MethodInfo> memberInfos)
+        {
+            Requires.NotNull(memberInfos, nameof(memberInfos));
+            return memberInfos.Where(i => i.IsPublic);
+        }
 
         /// <summary>
         /// Checks if a property or field is static
@@ -104,6 +110,10 @@ namespace TypeGen.Core.Extensions
         public static bool IsNullable(this MemberInfo memberInfo)
         {
             Requires.NotNull(memberInfo, nameof(memberInfo));
+
+            if (memberInfo.Is<MethodInfo>()) {
+                return ((MethodInfo) memberInfo).ReturnType.IsNullable();
+            }
             
             var contextualMember = memberInfo.ToContextualAccessor();
             return contextualMember.Nullability == Nullability.Nullable;
@@ -169,14 +179,18 @@ namespace TypeGen.Core.Extensions
             
             var propertyInfos = (IEnumerable<MemberInfo>) typeInfo.DeclaredProperties
                 .WithMembersFilter();
+            
+            var methodInfos = (IEnumerable<MemberInfo>) typeInfo.DeclaredMethods.Where(m => !m.IsSpecialName)
+                .WithMembersFilter();
 
             if (withoutTsIgnore)
             {
                 fieldInfos = fieldInfos.WithoutTsIgnore(metadataReader);
                 propertyInfos = propertyInfos.WithoutTsIgnore(metadataReader);
-            }  
+                methodInfos = methodInfos.WithoutTsIgnore(metadataReader);
+            }
 
-            return fieldInfos.Union(propertyInfos);
+            return fieldInfos.Union(propertyInfos).Union(methodInfos);
         }
 
         /// <summary>

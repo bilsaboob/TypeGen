@@ -130,6 +130,21 @@ namespace TypeGen.Core.Generator.Services
         {
             var result = new List<TypeDependencyInfo>();
 
+            void AddTypeDependency(MemberInfo memberInfo, Type memberType) {
+                Type memberFlatType = _typeService.GetFlatType(memberType);
+
+                if (memberFlatType == type || (memberFlatType.IsConstructedGenericType && memberFlatType.GetGenericTypeDefinition() == type)) return; // NOT a dependency if it's the type itself
+                if (GeneratorOptions.CustomTypeMappings.ContainsKey(memberFlatType.FullName ?? "")) return; // NOT a dependency if specified in custom type mappings
+
+                IEnumerable<Attribute> memberAttributes = _metadataReaderFactory.GetInstance().GetAttributes<Attribute>(memberInfo);
+
+                var types = GetFlatTypeDependencies(memberFlatType, memberAttributes);
+                foreach (var t in types) {
+                    if(result.Contains(rt => rt.Type == t.Type)) continue;
+                    result.Add(t);
+                }
+            }
+            
             IEnumerable<MemberInfo> memberInfos = type.GetTsExportableMembers(_metadataReaderFactory.GetInstance());
             foreach (MemberInfo memberInfo in memberInfos)
             {
@@ -137,14 +152,16 @@ namespace TypeGen.Core.Generator.Services
                     || _metadataReaderFactory.GetInstance().GetAttribute<TsIgnoreAttribute>(memberInfo) != null)
                     continue;
 
-                Type memberType = _typeService.GetMemberType(memberInfo);
-                Type memberFlatType = _typeService.GetFlatType(memberType);
-
-                if (memberFlatType == type || (memberFlatType.IsConstructedGenericType && memberFlatType.GetGenericTypeDefinition() == type)) continue; // NOT a dependency if it's the type itself
-                if (GeneratorOptions.CustomTypeMappings.ContainsKey(memberFlatType.FullName ?? "")) continue; // NOT a dependency if specified in custom type mappings
-
-                IEnumerable<Attribute> memberAttributes = _metadataReaderFactory.GetInstance().GetAttributes<Attribute>(memberInfo);
-                result.AddRange(GetFlatTypeDependencies(memberFlatType, memberAttributes));
+                if (memberInfo.Is<MethodInfo>()) {
+                    AddTypeDependency(memberInfo, ((MethodInfo)memberInfo).ReturnType);
+                    
+                    foreach (var p in ((MethodInfo)memberInfo).GetParameters()) {
+                        AddTypeDependency(memberInfo, p.ParameterType);
+                    }
+                } else {
+                    var memberType = _typeService.GetMemberType(memberInfo);
+                    AddTypeDependency(memberInfo, memberType);
+                }
             }
 
             return result;
@@ -160,6 +177,10 @@ namespace TypeGen.Core.Generator.Services
                     .Select(t => new TypeDependencyInfo(t, memberAttributes, isBase));
             }
 
+            if (!IsSelfTypeIncluded(flatType)) {
+                return [];
+            }
+
             return new[] { new TypeDependencyInfo(flatType, memberAttributes, isBase) };
         }
 
@@ -171,10 +192,10 @@ namespace TypeGen.Core.Generator.Services
         private IEnumerable<Type> GetGenericTypeNonDefinitionDependencies(Type type)
         {
             if (!type.GetTypeInfo().IsGenericType) throw new CoreException($"Type {type.FullName} must be a generic type");
-
-            List<Type> result = _typeService.IsDictionaryType(type)
-                ? new List<Type>()
-                : new List<Type> { type.GetGenericTypeDefinition() };
+            
+            List<Type> result = IsSelfTypeIncluded(type)
+                ? new List<Type> { type.GetGenericTypeDefinition() }
+                : new List<Type>();
 
             foreach (Type genericArgument in type.GetGenericArguments())
             {
@@ -188,6 +209,12 @@ namespace TypeGen.Core.Generator.Services
             }
 
             return result;
+        }
+
+        private bool IsSelfTypeIncluded(Type type) {
+            return !_typeService.IsDictionaryType(type) &&
+                   !_typeService.IsTaskType(type) &&
+                   !_typeService.IsActionType(type);
         }
     }
 }

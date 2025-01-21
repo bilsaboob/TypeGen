@@ -26,6 +26,7 @@ namespace TypeGen.Core.Generator
         public static bool DefaultSingleQuotes => false;
         public static bool DefaultCreateIndexFile => false;
         public static StrictNullTypeUnionFlags DefaultCsNullableTranslation => StrictNullTypeUnionFlags.None;
+        public static bool DefaultTsOptionalProperties => false;
         public static bool DefaultCsAllowNullsForAllTypes = false;
         public static bool DefaultCsDefaultValuesForConstantsOnly = false;
         public static IDictionary<string, string> DefaultDefaultValuesForTypes => new Dictionary<string, string>();
@@ -127,6 +128,8 @@ namespace TypeGen.Core.Generator
         /// </summary>
         public StrictNullTypeUnionFlags CsNullableTranslation { get; set; } = DefaultCsNullableTranslation;
 
+        public bool TsOptionalProperties { get; set; } = DefaultTsOptionalProperties;
+
         /// <summary>
         /// Specifies whether null union types should be added for all types
         /// </summary>
@@ -188,6 +191,8 @@ namespace TypeGen.Core.Generator
         /// </summary>
         public HashSet<string> TypeBlacklist { get; set; } = DefaultTypeBlacklist;
 
+        public IOutputDirectorySelector OutputDirectorySelector { get; set; } = null;
+
         /// <summary>
         /// Checks if the type is on the type blacklist.
         /// </summary>
@@ -212,4 +217,9 @@ namespace TypeGen.Core.Generator
         /// <returns>true if the type is not on the blacklist, false otherwise</returns>
         public bool IsTypeNotBlacklisted(Type type) => !IsTypeBlacklisted(type);
     }
+}
+
+public interface IOutputDirectorySelector
+{
+    string GetOutputDirectory(Type type, string outputDirectory);
 }

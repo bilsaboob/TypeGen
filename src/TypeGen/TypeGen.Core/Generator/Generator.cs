@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Text;
 using System.Threading.Tasks;
 using TypeGen.Core.Conversion;
 using TypeGen.Core.Extensions;
@@ -379,6 +380,8 @@ namespace TypeGen.Core.Generator
         private IEnumerable<string> GenerateNotMarkedType(Type type, string outputDirectory)
         {
             if (Options.IsTypeBlacklisted(type)) return Enumerable.Empty<string>();
+
+            outputDirectory = this.Options.OutputDirectorySelector?.GetOutputDirectory(type, outputDirectory) ?? outputDirectory;
             
             var typeInfo = type.GetTypeInfo();
             if (typeInfo.IsClass || typeInfo.IsStruct())
@@ -463,6 +466,8 @@ namespace TypeGen.Core.Generator
         {
             string outputDir = interfaceAttribute.OutputDir;
             IEnumerable<string> dependenciesGenerationResult = GenerateTypeDependencies(type, outputDir);
+            
+            string outputFilePath = GetFilePath(type, outputDir);
 
             // get text for sections
 
@@ -482,27 +487,27 @@ namespace TypeGen.Core.Generator
 
             string importsText = _tsContentGenerator.GetImportsText(type, outputDir);
             string propertiesText = GetInterfacePropertiesText(type);
+            string methodsText = GetInterfaceMethodsText(type);
 
             // generate the file content
 
             string tsTypeName = _typeService.GetTsTypeName(type, true);
             string tsTypeNameFirstPart = tsTypeName.RemoveTsTypeNameGenericComponent();
-            string filePath = GetFilePath(type, outputDir);
             string filePathRelative = GetRelativeFilePath(type, outputDir);
-            string customInFileHead = _tsContentGenerator.GetCustomHead(filePath);
+            string customInFileHead = _tsContentGenerator.GetCustomHead(outputFilePath);
             string customAttributeHead = interfaceAttribute.CustomHeader;
             string customHead = string.Join(Environment.NewLine, new[] { customInFileHead, customAttributeHead }.Where(i => !string.IsNullOrWhiteSpace(i)));
-            string customInFileBody = _tsContentGenerator.GetCustomBody(filePath, Options.TabLength);
+            string customInFileBody = _tsContentGenerator.GetCustomBody(outputFilePath, Options.TabLength);
             string customAttributeBody = interfaceAttribute.CustomBody;
             string customBody = string.Join(Environment.NewLine, new[] { customInFileBody, customAttributeBody }.Where(i => !string.IsNullOrWhiteSpace(i)));
             var tsDoc = GetTsDocForType(type);
 
             var content = _typeService.UseDefaultExport(type) ?
                     _templateService.FillInterfaceDefaultExportTemplate(importsText, tsTypeName, tsTypeNameFirstPart, extendsText, propertiesText, tsDoc, customHead, customBody, Options.FileHeading) :
-                    _templateService.FillInterfaceTemplate(importsText, tsTypeName, extendsText, propertiesText, tsDoc, customHead, customBody, Options.FileHeading);
+                    _templateService.FillInterfaceTemplate(importsText, tsTypeName, extendsText, propertiesText, methodsText, tsDoc, customHead, customBody, Options.FileHeading);
 
             // write TypeScript file
-            FileContentGenerated?.Invoke(this, new FileContentGeneratedArgs(type, filePath, content));
+            FileContentGenerated?.Invoke(this, new FileContentGeneratedArgs(type, outputFilePath, content));
             return new[] { filePathRelative }.Concat(dependenciesGenerationResult).ToList();
         }
 
@@ -685,12 +690,42 @@ namespace TypeGen.Core.Generator
             var tsDoc = GetTsDocForMember(type, memberInfo);
             bool isOptional = _metadataReaderFactory.GetInstance().GetAttribute<TsOptionalAttribute>(memberInfo) != null;
             var isNullable = memberInfo.IsNullable();
-            if (isNullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional)
+            if ((isNullable && Options.CsNullableTranslation == StrictNullTypeUnionFlags.Optional) || Options.TsOptionalProperties)
             {
                 isOptional = true;
             }
 
             return _templateService.FillInterfacePropertyTemplate(modifiers, name, typeName, typeUnions, isOptional, tsDoc);
+        }
+        
+        private string GetInterfaceMethodText(Type type, MethodInfo memberInfo)
+        {
+            LogInterfacePropertyWarnings(memberInfo);
+            if (_typeService.MemberTypeContainsBlacklistedType(memberInfo)) ThrowMemberTypeIsBlacklisted(memberInfo);
+
+            string modifiers = "";
+            
+            var parameters = new StringBuilder();
+            parameters.Append("(");
+            var methodParameters = memberInfo.GetParameters();
+            for (var i = 0; i < methodParameters.Length; ++i) {
+                if(i > 0) parameters.Append(", ");
+                
+                var mp = methodParameters[i];
+                parameters.Append(mp.Name);
+                parameters.Append(": ");
+                var mpType = _typeService.GetTsTypeName(mp.ParameterType);
+                parameters.Append(mpType);
+            }
+            parameters.Append(")");
+            
+            var nameAttribute = _metadataReaderFactory.GetInstance().GetAttribute<TsMemberNameAttribute>(memberInfo);
+            string name = nameAttribute?.Name ?? Options.PropertyNameConverters.Convert(memberInfo.Name, memberInfo);
+
+            var returnType = _typeService.GetTsTypeName(memberInfo.ReturnType);
+
+            var tsDoc = GetTsDocForMember(type, memberInfo);
+            return _templateService.FillInterfaceMethodTemplate(modifiers, name, parameters.ToString(), returnType, tsDoc);
         }
 
         private void LogInterfacePropertyWarnings(MemberInfo memberInfo)
@@ -715,7 +750,8 @@ namespace TypeGen.Core.Generator
         private string GetInterfacePropertiesText(Type type)
         {
             var propertiesText = "";
-            IEnumerable<MemberInfo> memberInfos = type.GetTsExportableMembers(_metadataReaderFactory.GetInstance());
+            IEnumerable<MemberInfo> memberInfos = type.GetTsExportableMembers(_metadataReaderFactory.GetInstance())
+                .Where(m => m.MemberType == MemberTypes.Field || m.MemberType == MemberTypes.Property);
 
             // create TypeScript source code for properties' definition
 
@@ -723,6 +759,20 @@ namespace TypeGen.Core.Generator
                 .Aggregate(propertiesText, (current, memberInfo) => current + GetInterfacePropertyText(type, memberInfo));
 
             return RemoveLastLineEnding(propertiesText);
+        }
+        
+        private string GetInterfaceMethodsText(Type type)
+        {
+            var methodsText = "";
+            IEnumerable<MemberInfo> memberInfos = type.GetTsExportableMembers(_metadataReaderFactory.GetInstance())
+                .Where(m => m.MemberType == MemberTypes.Method);
+
+            // create TypeScript source code for properties' definition
+
+            methodsText += memberInfos
+                .Aggregate(methodsText, (current, memberInfo) => current + GetInterfaceMethodText(type, (MethodInfo)memberInfo));
+
+            return RemoveLastLineEnding(methodsText);
         }
 
         /// <summary>

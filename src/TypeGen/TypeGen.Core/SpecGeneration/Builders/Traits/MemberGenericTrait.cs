@@ -15,4 +15,7 @@ internal class MemberGenericTrait<TType, TSpecBuilder> : IMemberGenericTrait<TTy
 
     public TSpecBuilder Member(Func<TType, string> memberNameFunc)
         => _memberTrait.Member(memberNameFunc(_tTypeInstance));
+    
+    public TSpecBuilder Method(Func<TType, string> methodNameFunc)
+        => _memberTrait.Method(methodNameFunc(_tTypeInstance));
 }

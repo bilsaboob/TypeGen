@@ -159,6 +159,7 @@ namespace TypeGen.Core.Generator.Services
                 Type typeDependency = typeDependencyInfo.Type;
 
                 string dependencyOutputDir = GetTypeDependencyOutputDir(typeDependencyInfo, outputDir);
+                dependencyOutputDir = this.GeneratorOptions.OutputDirectorySelector?.GetOutputDirectory(typeDependency, dependencyOutputDir) ?? dependencyOutputDir;
 
                 // get path diff
                 string pathDiff = FileSystemUtils.GetPathDiff(outputDir, dependencyOutputDir);

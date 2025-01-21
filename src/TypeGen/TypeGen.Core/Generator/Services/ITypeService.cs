@@ -51,6 +51,10 @@ namespace TypeGen.Core.Generator.Services
         /// <returns></returns>
         bool IsDictionaryType(Type type);
 
+        bool IsTaskType(Type type);
+        
+        bool IsActionType(Type type);
+
         /// <summary>
         /// Determines if a type is a user-defined generic type
         /// </summary>

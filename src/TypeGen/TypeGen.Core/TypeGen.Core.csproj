@@ -37,6 +37,7 @@
     <EmbeddedResource Include="Templates\ImportDefaultExport.tpl" />
     <EmbeddedResource Include="Templates\Interface.tpl" />
     <EmbeddedResource Include="Templates\InterfaceDefaultExport.tpl" />
+    <EmbeddedResource Include="Templates\InterfaceMethod.tpl" />
     <EmbeddedResource Include="Templates\InterfaceProperty.tpl" />
     <EmbeddedResource Include="Templates\Index.tpl" />
     <EmbeddedResource Include="Templates\IndexExport.tpl" />

@@ -95,7 +95,7 @@ namespace TypeGen.Core.SpecGeneration.Builders
         
         /// <inheritdoc />
         public TSelf DefaultTypeOutput(string outputDir) => _defaultTypeOutputTrait.DefaultTypeOutput(outputDir);
-        
+
         /// <inheritdoc />
         public TSelf DefaultValue(string defaultValue) => _defaultValueTrait.DefaultValue(defaultValue);
         

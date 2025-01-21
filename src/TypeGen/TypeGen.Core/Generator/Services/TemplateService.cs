@@ -29,6 +29,7 @@ namespace TypeGen.Core.Generator.Services
         private readonly string _interfaceTemplate;
         private readonly string _interfaceDefaultExportTemplate;
         private readonly string _interfacePropertyTemplate;
+        private readonly string _interfaceMethodTemplate;
         private readonly string _importTemplate;
         private readonly string _importDefaultExportTemplate;
         private readonly string _indexTemplate;
@@ -54,6 +55,7 @@ namespace TypeGen.Core.Generator.Services
             _interfaceTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.Interface.tpl");
             _interfaceDefaultExportTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.InterfaceDefaultExport.tpl");
             _interfacePropertyTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.InterfaceProperty.tpl");
+            _interfaceMethodTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.InterfaceMethod.tpl");
             _importTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.Import.tpl");
             _importDefaultExportTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.ImportDefaultExport.tpl");
             _indexTemplate = _internalStorage.GetEmbeddedResource("TypeGen.Core.Templates.Index.tpl");
@@ -115,7 +117,7 @@ namespace TypeGen.Core.Generator.Services
                 .NormalizeNewLines();
         }
 
-        public string FillInterfaceTemplate(string imports, string name, string extends, string properties, string tsDoc,
+        public string FillInterfaceTemplate(string imports, string name, string extends, string properties, string methods, string tsDoc,
             string customHead,string customBody, string fileHeading = null)
         {
             if (fileHeading == null) fileHeading = _headingTemplate;
@@ -125,6 +127,7 @@ namespace TypeGen.Core.Generator.Services
                 .Replace(GetTag("name"), name)
                 .Replace(GetTag("extends"), extends)
                 .Replace(GetTag("properties"), properties)
+                .Replace(GetTag("methods"), methods)
                 .Replace(GetTag("tsDoc"), tsDoc)
                 .Replace(GetTag("customHead"), customHead)
                 .Replace(GetTag("customBody"), customBody)
@@ -132,7 +135,7 @@ namespace TypeGen.Core.Generator.Services
                 .NormalizeNewLines();
         }
         
-        public string FillInterfaceDefaultExportTemplate(string imports, string name, string exportName, string extends, string properties,
+        public string FillInterfaceDefaultExportTemplate(string imports, string name, string exportName, string extends, string properties, string methods,
             string tsDoc, string customHead, string customBody, string fileHeading = null)
         {
             if (fileHeading == null) fileHeading = _headingTemplate;
@@ -143,6 +146,7 @@ namespace TypeGen.Core.Generator.Services
                 .Replace(GetTag("exportName"), exportName)
                 .Replace(GetTag("extends"), extends)
                 .Replace(GetTag("properties"), properties)
+                .Replace(GetTag("methods"), methods)
                 .Replace(GetTag("tsDoc"), tsDoc)
                 .Replace(GetTag("customHead"), customHead)
                 .Replace(GetTag("customBody"), customBody)
@@ -160,6 +164,19 @@ namespace TypeGen.Core.Generator.Services
                 .Replace(GetTag("modifiers"), modifiers)
                 .Replace(GetTag("name"), name + (isOptional ? "?" : ""))
                 .Replace(GetTag("type"), type)
+                .Replace(GetTag("tsDoc"), tsDoc)
+                .NormalizeNewLines();
+        }
+        
+        public string FillInterfaceMethodTemplate(string modifiers, string name, string parameters, string returnType, string tsDoc)
+        {
+            returnType = $": {returnType}";
+            
+            return ReplaceSpecialChars(_interfaceMethodTemplate)
+                .Replace(GetTag("modifiers"), modifiers)
+                .Replace(GetTag("name"), name)
+                .Replace(GetTag("parameters"), parameters)
+                .Replace(GetTag("returnType"), returnType)
                 .Replace(GetTag("tsDoc"), tsDoc)
                 .NormalizeNewLines();
         }
