@@ -34,9 +34,11 @@ namespace TypeGen.Core.Generator.Context
 
         public void EndTypeGeneration() => _generatedTypes.EndTypeGeneration();
         
-        public void AddGeneratedType(Type type) => _generatedTypes.Add(type);
+        public GeneratedTypeEntry AddGeneratedType(Type type) => _generatedTypes.Add(type);
         
         public bool IsTypeGenerated(Type type) => _generatedTypes.IsGenerated(type);
+        
+        public string GetGeneratedOutputFilePath(Type type) => _generatedTypes.GetGeneratedOutputFilePath(type);
         
         public bool IsTypeGeneratedForType(Type type) => _generatedTypes.IsGeneratedForType(type);
 

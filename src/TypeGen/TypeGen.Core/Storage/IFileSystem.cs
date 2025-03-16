@@ -4,6 +4,8 @@ namespace TypeGen.Core.Storage
 {
     internal interface IFileSystem
     {
+        string NormalizePath(string path);
+        
         /// <summary>
         /// Writes a text file to the specified location
         /// </summary>

@@ -5,8 +5,16 @@ using TypeGen.Core.Validation;
 
 namespace TypeGen.Core.Generator.Context;
 
+internal class GeneratedTypeEntry
+{
+    public Type Type { get; set; }
+    public string OutputFilePath { get; set; }
+}
+
 internal class GeneratedTypes
 {
+    private readonly IList<GeneratedTypeEntry> _allGeneratedTypesEntries = new List<GeneratedTypeEntry>();
+
     /// <summary>
     /// Types that have already been generated in the current session.
     /// </summary>
@@ -17,16 +25,23 @@ internal class GeneratedTypes
     /// </summary>
     private IList<Type> _currentTypeGeneratedTypes;
     
+    // private IList<Type> _currentTypeGeneratedTypes;
+    
     /// <summary>
     /// Adds the type to the generated types.
     /// </summary>
     /// <param name="type"></param>
-    public void Add(Type type)
+    public GeneratedTypeEntry Add(Type type, string outputFilePath = null)
     {
         Requires.NotNull(type, nameof(type));
-            
+
+        var entry = new GeneratedTypeEntry {Type = type, OutputFilePath = outputFilePath};
+        _allGeneratedTypesEntries.Add(entry);
+        
         _allGeneratedTypes.Add(type);
         _currentTypeGeneratedTypes?.Add(type);
+
+        return entry;
     }
     
     /// <summary>
@@ -44,6 +59,11 @@ internal class GeneratedTypes
     {
         Requires.NotNull(type, nameof(type));
         return _allGeneratedTypes?.Contains(type) ?? false;
+    }
+
+    public string GetGeneratedOutputFilePath(Type type) {
+        var entry = _allGeneratedTypesEntries.FirstOrDefault(e => e.Type == type);
+        return entry?.OutputFilePath;
     }
 
     /// <summary>

@@ -17,7 +17,7 @@ namespace TypeGen.Core.Generator.Services
         string FillEnumUnionTypeValueTemplate(string name);
         string FillImportTemplate(string name, string typeAlias, string path, bool useImportType);
         string FillImportDefaultExportTemplate(string name, string path, bool useImportType);
-        string FillIndexTemplate(string exports);
+        string FillIndexTemplate(string exports, string fileHeading);
         string FillIndexExportTemplate(string filename);
         string GetExtendsText(string name);
         string GetExtendsText(IEnumerable<string> names);

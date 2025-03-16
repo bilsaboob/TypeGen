@@ -103,7 +103,7 @@ namespace TypeGen.Core.Generator.Services
             switch (type.FullName)
             {
                 case "System.Object":
-                    return "Object";
+                    return "any";
                 case "System.Boolean":
                     return "boolean";
                 case "System.Char":

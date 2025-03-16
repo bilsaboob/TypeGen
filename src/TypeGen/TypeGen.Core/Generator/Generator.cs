@@ -278,23 +278,29 @@ namespace TypeGen.Core.Generator
 
             var entries = new List<string>();
             
-            if (barrelSpec.BarrelScope.HasFlag(BarrelScope.Files))
-            {
-                entries.AddRange(_fileSystem.GetDirectoryFiles(directory)
+            if (barrelSpec.BarrelScope.HasFlag(BarrelScope.Files)) {
+
+                var files = _fileSystem.DirectoryExists(directory)
+                    ? _fileSystem.GetDirectoryFiles(directory)
+                    : [];
+                entries.AddRange(files
                     .Where(x => Path.GetFileName(x) != fileName && x.EndsWith($".{Options.TypeScriptFileExtension}"))
-                    .Select(Path.GetFileNameWithoutExtension));
+                    .Select(Path.GetFileNameWithoutExtension)
+                );
             }
             
             if (barrelSpec.BarrelScope.HasFlag(BarrelScope.Directories))
             {
-                entries.AddRange(
-                    _fileSystem.GetDirectoryDirectories(directory)
-                        .Select(dir => dir.Replace("\\", "/").Split('/').Last())
-                    );
+                var directories = _fileSystem.DirectoryExists(directory)
+                    ? _fileSystem.GetDirectoryDirectories(directory)
+                    : [];
+                entries.AddRange(directories
+                    .Select(dir => dir.Replace("\\", "/").Split('/').Last())
+                );
             }
 
             string indexExportsContent = entries.Aggregate("", (acc, entry) => acc += _templateService.FillIndexExportTemplate(entry));
-            string content = _templateService.FillIndexTemplate(indexExportsContent);
+            string content = _templateService.FillIndexTemplate(indexExportsContent, Options.FileHeading);
             
             FileContentGenerated?.Invoke(this, new FileContentGeneratedArgs(null, filePath, content));
             return new[] { Path.Combine(barrelSpec.Directory.EnsurePostfix("/"), fileName) };
@@ -319,7 +325,7 @@ namespace TypeGen.Core.Generator
                 string fileNameWithoutExt = file.Remove(file.Length - typeScriptFileExtension.Length).Replace("\\", "/");
                 return prevExports + _templateService.FillIndexExportTemplate(fileNameWithoutExt);
             });
-            string content = _templateService.FillIndexTemplate(exports);
+            string content = _templateService.FillIndexTemplate(exports, Options.FileHeading);
 
             string filename = "index" + typeScriptFileExtension;
             FileContentGenerated?.Invoke(this, new FileContentGeneratedArgs(null, Path.Combine(Options.BaseOutputDirectory, filename), content));
@@ -334,8 +340,11 @@ namespace TypeGen.Core.Generator
             IEnumerable<string> files = Enumerable.Empty<string>();
             
             _generationContext.BeginTypeGeneration(type);
-            _generationContext.AddGeneratedType(type);
-            ExecuteWithTypeContextLogging(() => { files = GenerateType(type); });
+            var entry = _generationContext.AddGeneratedType(type);
+            ExecuteWithTypeContextLogging(() => {
+                files = GenerateType(type);
+                entry.OutputFilePath = files?.FirstOrDefault();
+            });
             _generationContext.EndTypeGeneration();
 
             return files.Distinct();
@@ -831,7 +840,11 @@ namespace TypeGen.Core.Generator
             foreach (var typeDependencyInfo in typeDependencies)
             {
                 var typeDependency = typeDependencyInfo.Type;
-                if (typeDependency.HasExportAttribute(_metadataReaderFactory.GetInstance()) || _generationContext.IsTypeGenerated(typeDependency)) continue;
+                if (typeDependency.HasExportAttribute(_metadataReaderFactory.GetInstance())) continue;
+                if (_generationContext.IsTypeGenerated(typeDependency)) {
+                    var generatedOutputPath = this._fileSystem.NormalizePath(_generationContext.GetGeneratedOutputFilePath(typeDependency));
+                    if (generatedOutputPath?.StartsWith(outputDir) is true) continue;
+                }
                 
                 var defaultOutputAttribute = typeDependencyInfo.MemberAttributes
                         ?.FirstOrDefault(a => a is TsDefaultTypeOutputAttribute)
@@ -839,11 +852,12 @@ namespace TypeGen.Core.Generator
 
                 var defaultOutputDir = defaultOutputAttribute?.OutputDir ?? outputDir;
                 
-                _generationContext.AddGeneratedType(typeDependency);
+                var entry = _generationContext.AddGeneratedType(typeDependency);
                 
-                try
-                {
-                    generatedFiles.AddRange(GenerateNotMarkedType(typeDependency, defaultOutputDir));
+                try {
+                    var generatedFilesForType = GenerateNotMarkedType(typeDependency, defaultOutputDir).ToArray();
+                    entry.OutputFilePath = generatedFilesForType.FirstOrDefault();
+                    generatedFiles.AddRange(generatedFilesForType);
                 }
                 catch (Exception ex)
                 {

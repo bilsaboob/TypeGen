@@ -255,10 +255,13 @@ namespace TypeGen.Core.Generator.Services
                 .NormalizeNewLines();
         }
 
-        public string FillIndexTemplate(string exports)
+        public string FillIndexTemplate(string exports, string fileHeading)
         {
+            if (fileHeading == null) fileHeading = _headingTemplate;
+            
             return ReplaceSpecialChars(_indexTemplate)
                 .Replace(GetTag("exports"), exports)
+                .Replace(GetTag("fileHeading"), fileHeading)
                 .NormalizeNewLines();
         }
 

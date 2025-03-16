@@ -268,7 +268,8 @@ namespace TypeGen.Core.Generator.Services
 
             return classAttribute?.OutputDir
                     ?? interfaceAttribute?.OutputDir
-                    ?? enumAttribute?.OutputDir;
+                    ?? enumAttribute?.OutputDir
+                    ?? parentTypeOutputDir;
         }
 
         /// <summary>

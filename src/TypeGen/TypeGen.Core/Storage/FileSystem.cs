@@ -12,6 +12,10 @@ namespace TypeGen.Core.Storage
     /// </summary>
     internal class FileSystem : IFileSystem
     {
+        public string NormalizePath(string path) {
+            return path?.Replace('\\', '/');
+        }
+
         /// <inheritdoc />
         public void SaveFile(string filePath, string content)
         {
